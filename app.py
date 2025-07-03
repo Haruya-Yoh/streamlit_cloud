@@ -1,72 +1,56 @@
 import os
-import pandas as pd
+from dotenv import load_dotenv
 import streamlit as st
-from sentence_transformers import SentenceTransformer
-import chromadb
 from openai import OpenAI
+from sentence_transformers import SentenceTransformer
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 
-# --- Telemetry無効化（ChromaDBが起動時に参照） ---
-os.environ["CHROMADB_TELEMETRY_ENABLED"] = "False"
+# --- 環境変数の読み込み（ローカル用） ---
+load_dotenv()
 
-# --- OpenAI初期化（Streamlit Cloudのsecretsから取得） ---
-client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# --- APIキーなどの設定 ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+QDRANT_HOST = os.getenv("QDRANT_HOST")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+COLLECTION_NAME = "line_rangers"
 
-# --- ChromaDB（インメモリ）クライアント初期化 ---
-client = chromadb.Client()
-collection = client.get_or_create_collection(
-    name="line_rangers",
-    metadata={"hnsw:space": "cosine"}  # ✅ コサイン類似度で検索
+# --- OpenAI クライアント初期化 ---
+client_ai = OpenAI(api_key=OPENAI_API_KEY)
+
+# --- Qdrant クライアント初期化 ---
+qdrant = QdrantClient(
+    url=QDRANT_HOST,
+    api_key=QDRANT_API_KEY
 )
 
-# --- 埋め込みモデルをロード（キャッシュ付き） ---
-@st.cache_resource
-def load_embedder():
-    return SentenceTransformer("all-MiniLM-L6-v2")
+# --- 埋め込みモデルのロード ---
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-embedder = load_embedder()
-
-# --- 初期データ登録（CSVファイルから） ---
-@st.cache_data
-def load_and_register():
-    df = pd.read_csv("scraped.csv")
-
-    # タイトル＋本文を連結して文書にする
-    if "title" in df.columns and "body" in df.columns:
-        texts = [f"{row['title']}：{row['body']}" for _, row in df.iterrows()]
-    elif "text" in df.columns:
-        texts = df["text"].tolist()
-    else:
-        raise ValueError("CSVに 'title'+'body' か 'text' カラムが必要です")
-
-    embeddings = embedder.encode(texts).tolist()
-    collection.add(
-        documents=texts,
-        embeddings=embeddings,
-        ids=[f"id{i}" for i in range(len(texts))]
-    )
-    return len(texts)
-
-num_docs = load_and_register()
-
-# --- 類似文書の検索と文脈作成 ---
+# --- 類似文書検索 ---
 def create_context(question: str, max_len: int = 1800) -> str:
-    q_embedding = embedder.encode([question])[0]
-    results = collection.query(query_embeddings=[q_embedding], n_results=7)
+    q_vector = embedder.encode([question])[0]
+    search_result = qdrant.search(
+        collection_name=COLLECTION_NAME,
+        query_vector=q_vector,
+        limit=7
+    )
 
     texts = []
     total_words = 0
-    for doc in results["documents"][0]:
-        word_count = len(doc.split())
+    for point in search_result:
+        text = point.payload.get("text", "")
+        word_count = len(text.split())
         if total_words + word_count > max_len:
             break
-        texts.append(doc)
+        texts.append(text)
         total_words += word_count
 
     return "\n\n###\n\n".join(texts)
 
-# --- GPTで質問に回答 ---
+# --- GPT に回答を依頼 ---
 def answer_question(question: str, history: list) -> str:
-    context = create_context(question, max_len=200)
+    context = create_context(question)
     prompt = f"""
 あなたはゲームの攻略情報発信者です。
 以下のコンテキストに基づいて、質問に答えてください。
@@ -77,17 +61,16 @@ def answer_question(question: str, history: list) -> str:
 
 ---
 質問: {question}
-回答:
-""".strip()
+回答:""".strip()
 
     history.append({"role": "user", "content": prompt})
     try:
-        response = client_ai.chat.completions.create(
+        resp = client_ai.chat.completions.create(
             model="gpt-4o",
             messages=history,
-            temperature=0.7,
+            temperature=0.7
         )
-        answer = response.choices[0].message.content.strip()
+        answer = resp.choices[0].message.content.strip()
         history.append({"role": "assistant", "content": answer})
         return answer
     except Exception as e:
@@ -95,9 +78,7 @@ def answer_question(question: str, history: list) -> str:
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="LINEレンジャーQ&A", page_icon="🎮")
-st.title("🎮 LINEレンジャーQ&A チャットボット")
-
-st.info(f"📚 登録済み文書数: {num_docs} 件")
+st.title("🎮 LINEレンジャーQ&Aチャットボット")
 
 if "history" not in st.session_state:
     st.session_state.history = []
