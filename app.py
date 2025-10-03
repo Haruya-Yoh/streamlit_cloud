@@ -4,7 +4,6 @@ import streamlit as st
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 # --- 環境変数の読み込み（ローカル用） ---
 load_dotenv()
@@ -33,7 +32,7 @@ def create_context(question: str, max_len: int = 1800) -> str:
     search_result = qdrant.search(
         collection_name=COLLECTION_NAME,
         query_vector=q_vector,
-        limit=7
+        limit=7   # ← ここで取得件数を調整（3,5,7など実験可能）
     )
 
     texts = []
@@ -51,6 +50,10 @@ def create_context(question: str, max_len: int = 1800) -> str:
 # --- GPT に回答を依頼 ---
 def answer_question(question: str, history: list) -> str:
     context = create_context(question)
+
+    # 🔍 今回の参照コンテキストを保存しておく（表示用）
+    st.session_state["last_context"] = context  
+
     prompt = f"""
 あなたはゲームの攻略情報発信者です。
 以下のコンテキストに基づいて、質問に答えてください。
@@ -91,3 +94,8 @@ if st.button("送信") and question:
         st.markdown("---")
         st.markdown(f"**あなたの質問：** {question}")
         st.markdown(f"**AIの回答：** {answer}")
+
+        # 🔍 コンテキスト確認を追加
+        if "last_context" in st.session_state:
+            st.markdown("### 🔍 今回参照したコンテキスト")
+            st.text(st.session_state["last_context"])
