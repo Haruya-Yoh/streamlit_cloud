@@ -32,7 +32,7 @@ def create_context(question: str, max_len: int = 1800) -> str:
     search_result = qdrant.search(
         collection_name=COLLECTION_NAME,
         query_vector=q_vector,
-        limit=7   # ← ここで取得件数を調整（3,5,7など実験可能）
+        limit=4   # ← ここで取得件数を調整（3,5,7など実験可能）
     )
 
     texts = []
@@ -69,7 +69,7 @@ def answer_question(question: str, history: list) -> str:
     history.append({"role": "user", "content": prompt})
     try:
         resp = client_ai.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1-nano",
             messages=history,
             temperature=0.7
         )
