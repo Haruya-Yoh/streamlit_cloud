@@ -69,7 +69,7 @@ def answer_question(question: str, history: list) -> str:
     history.append({"role": "user", "content": prompt})
     try:
         resp = client_ai.chat.completions.create(
-            model="gpt-4.1-nano",
+            model="gpt-4.1-mini",
             messages=history,
             temperature=0.7
         )
