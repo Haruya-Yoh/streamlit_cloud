@@ -71,7 +71,7 @@ def answer_question(question: str, history: list) -> str:
         resp = client_ai.chat.completions.create(
             model="gpt-5-nano",
             messages=history,
-            temperature=0.7
+            temperature=1
         )
         answer = resp.choices[0].message.content.strip()
         history.append({"role": "assistant", "content": answer})
