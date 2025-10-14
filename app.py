@@ -56,8 +56,7 @@ def answer_question(question: str, history: list) -> str:
 
     prompt = f"""
 あなたはゲームの攻略情報発信者です。
-以下のコンテキストに基づいて、質問に答えてください。
-勝手な推測はせず、コンテキストに情報がない場合は「わかりません」と答えてください。
+以下のコンテキストに基づいて、質問に答えてください。コンテキストに情報がない場合は「わかりません」と答えてください。
 
 コンテキスト:
 {context}
@@ -69,7 +68,7 @@ def answer_question(question: str, history: list) -> str:
     history.append({"role": "user", "content": prompt})
     try:
         resp = client_ai.chat.completions.create(
-            model="gpt-5-nano",
+            model="gpt-5-mini",
             messages=history,
             temperature=1
         )
