@@ -29,7 +29,7 @@ embedder = SentenceTransformer("all-MiniLM-L6-v2")
 # --- 類似文書検索 ---
 def create_context(question: str, max_len: int = 1800) -> str:
     q_vector = embedder.encode([question])[0]
-    search_result = qdrant.search(
+    search_result = qdrant.search_points(
         collection_name=COLLECTION_NAME,
         query_vector=q_vector,
         limit=4   # ← ここで取得件数を調整（3,5,7など実験可能）
