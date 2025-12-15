@@ -80,7 +80,7 @@ def answer_question(question: str, history: list) -> str:
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="LINEレンジャーQ&A", page_icon="🎮")
-st.title("LINEレンジャーQ&Aチャットボット")
+st.title("🎮 LINEレンジャーQ&Aチャットボット")
 
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -96,5 +96,5 @@ if st.button("送信") and question:
 
         # 🔍 コンテキスト確認を追加
         if "last_context" in st.session_state:
-            st.markdown("### 今回参照したコンテキスト")
+            st.markdown("### 🔍 今回参照したコンテキスト")
             st.text(st.session_state["last_context"])
