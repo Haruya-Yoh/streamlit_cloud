@@ -79,7 +79,7 @@ def answer_question(question: str, history: list) -> str:
         return f"❌ エラー: {e}"
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="LINEレンジャーQ&A")
+st.set_page_config(page_title="LINEレンジャーQ&A", page_icon="🎮")
 st.title("LINEレンジャーQ&Aチャットボット")
 
 if "history" not in st.session_state:
