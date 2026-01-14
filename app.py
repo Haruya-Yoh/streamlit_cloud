@@ -32,8 +32,10 @@ def create_context(question: str, max_len: int = 2100) -> str:
     search_result = qdrant.search(
         collection_name=COLLECTION_NAME,
         query_vector=q_vector,
-        limit=4
-	    score_threshold=0.4 //類似度がこれ以上の時、取得
+        limit=4,
+
+    #類似度がこれ以上の時、類似した文書とする。
+	score_threshold=0.4
     )
 
     texts = []
